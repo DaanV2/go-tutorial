@@ -1,0 +1,10 @@
+var a int
+var b uint
+var d int8
+var e uint8
+var f int16
+var g uint16
+var h int32
+var i uint32
+var j int64
+var k uint64
