@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/DaanV2/go-tutorial/pkg/inventory"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: collectReceipts,
+	Run: collectAllReceipts,
 }
 
 func init() {
@@ -39,76 +40,90 @@ func init() {
 	// collectCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
+// Client represents a client with multiple receipts
+type Client struct {
+	Receipts []*inventory.Receipt // Receipts is a list of receipts for the client
+	Id       string               // Id is the unique identifier of the client
+}
+
+type Overview struct {
+	ToBuy        map[string]int64 // ToBuy is a map of product IDs to the number of items to buy
+	maxKeyLength int              // maxKeyLength is the length of the longest key in the map, used for printing
+}
+
+// NewOverview creates a new Overview value
+func NewOverview() *Overview {
+	return &Overview{
+		ToBuy: make(map[string]int64),
+	}
+}
+
+// AddReceipts adds multiple receipts to the overview
+func (o *Overview) AddReceipts(receipts []*inventory.Receipt) {
+	for _, r := range receipts {
+		o.AddReceipt(r)
+	}
+}
+
+// AddReceipt adds a single receipt to the overview
+func (o *Overview) AddReceipt(r *inventory.Receipt) {
+	for _, item := range r.Items {
+		id := item.ID
+		o.maxKeyLength = max(o.maxKeyLength, len(id))
+
+		// If the item is not in the map, add it, otherwise increment the quantity
+		if v, ok := o.ToBuy[id]; !ok {
+			o.ToBuy[id] = item.Quantity
+		} else {
+			o.ToBuy[id] = v + item.Quantity
+		}
+	}
+}
+
+// Print prints the overview to the console
+func (o *Overview) Print(title string) {
+	fmt.Printf("==== %s ====\n", title)
+	for k, v := range o.ToBuy {
+		padding := o.maxKeyLength - len(k)
+		fmt.Printf("%s:%s    %d\n", k, strings.Repeat(" ", padding), v)
+	}
+
+	fmt.Println()
+}
+
+// collectAllReceipts collects all receipts in the data/receipts folder
 func collectAllReceipts(cmd *cobra.Command, args []string) {
 	fmt.Println("collecting receipts")
 
 	// Collect all files in data/receipts, and all subfolders
 	folder := path.Join("data", "receipts")
-	files, err := collectFolder(folder)
+	client, err := collectClients(folder)
 	if err != nil {
-		fmt.Println("could not collect files:", err)
+		fmt.Println("could not collect clients:", err)
 		return
 	}
-
-	// Load all the files
-	fmt.Println("found", len(files), "files")
-	receipts, err := loadFiles(files)
-	if err != nil {
-		fmt.Println("could not load files:", err)
-		return
-	}
+	fmt.Println("collected clients", len(client))
 
 	// Processing the receipts
-	toBuy := make(map[string]int64)
-	for _, receipt := range receipts {
-		for _, item := range receipt.Items {
-			if v, ok := toBuy[item.ID]; !ok {
-				toBuy[item.ID] = item.Quantity
-			} else {
-				toBuy[item.ID] = v + item.Quantity
-			}
-		}
+	total := NewOverview()
+	clientTotal := make(map[string]*Overview)
+
+	for _, c := range client {
+		overview := NewOverview()
+		overview.AddReceipts(c.Receipts)
+		total.AddReceipts(c.Receipts)
+		clientTotal[c.Id] = overview
 	}
 
-	printMap("to buy", toBuy)
-}
-
-type Client struct {
-	Receipts []*inventory.Receipt
-	Id       string
-}
-
-func printMap[K comparable, T any](title string, m map[K]T) {
-	fmt.Println("====", title, "====")
-	for k, v := range m {
-		fmt.Println(k, v)
+	// Print the results
+	total.Print("Total")
+	for k, v := range clientTotal {
+		v.Print("client: " + k)
 	}
-	fmt.Println("")
 }
 
-func loadFiles(files []string) ([]*inventory.Receipt, error) {
-	receipts := make([]*inventory.Receipt, 0)
-	for _, file := range files {
-		r, err := loadFile(file)
-		if err != nil {
-			return nil, err
-		}
-		receipts = append(receipts, r)
-	}
-	return receipts, nil
-}
-
-func loadFile(file string) (*inventory.Receipt, error) {
-	switch path.Ext(file) {
-	case ".json":
-		return inventory.FromJson(file)
-	case ".csv":
-		return inventory.FromCsv(file)
-	}
-	return nil, nil
-}
-
-func collectClient(folder string) ([]*Client, error) {
+// collectClients collects all clients in a folder, excepts the folders to be client ids
+func collectClients(folder string) ([]*Client, error) {
 	files, err := os.ReadDir(folder)
 	if err != nil {
 		return nil, err
@@ -124,6 +139,7 @@ func collectClient(folder string) ([]*Client, error) {
 		c := &Client{
 			Id: file.Name(),
 		}
+		result = append(result, c)
 		receipts, err := collectReceipts(path.Join(folder, file.Name()))
 		if err != nil {
 			return nil, err
@@ -134,17 +150,16 @@ func collectClient(folder string) ([]*Client, error) {
 	return result, nil
 }
 
+// collectReceipts collects all receipts in a folder
 func collectReceipts(folder string) ([]*inventory.Receipt, error) {
 	files, err := os.ReadDir(folder)
 	if err != nil {
 		return nil, err
 	}
-
 	result := make([]*inventory.Receipt, 0)
 
 	for _, file := range files {
 		if !file.IsDir() {
-		} else {
 			filepath := path.Join(folder, file.Name())
 			receipt, err := loadFile(filepath)
 			if err != nil {
@@ -155,4 +170,15 @@ func collectReceipts(folder string) ([]*inventory.Receipt, error) {
 	}
 
 	return result, nil
+}
+
+// loadFile loads a file into a receipt, based on the file extension
+func loadFile(file string) (*inventory.Receipt, error) {
+	switch path.Ext(file) {
+	case ".json":
+		return inventory.FromJson(file)
+	case ".csv":
+		return inventory.FromCsv(file)
+	}
+	return nil, nil
 }
