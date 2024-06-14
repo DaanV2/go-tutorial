@@ -13,3 +13,6 @@
 ## Resources
 
 - [Go by Example](https://gobyexample.com/)
+- [Effective Go](https://go.dev/doc/effective_go)
+- [Case studies](https://go.dev/solutions/case-studies)
+- [100 Mistakes in Go](https://100go.co/)
