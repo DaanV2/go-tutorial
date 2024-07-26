@@ -1,7 +1,7 @@
-m := make(map[string]int, 100)
+m := make(map[string]string, 100)
 
-m["k1"] = 7
-m["k2"] = 13
+m["k1"] = "steve"
+m["k2"] = "jane"
 
 v1 := m["k1"]
 v3 := m["k3"]

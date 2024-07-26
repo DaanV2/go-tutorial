@@ -1,8 +1,8 @@
 
-items = append(items, 6)
-items = append(items, 6, 7, 8)
+items = append(items, "derek")
+items = append(items, "banana", "apple", "tomato")
 items = append(items, moreItems...)
 
 items = nil
-items = append(items, 1, 2, 3)
+items = append(items, "dave", "debbie", "gandalf")
 fmt.Println(items)

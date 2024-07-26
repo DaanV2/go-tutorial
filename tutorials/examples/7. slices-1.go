@@ -1,5 +1,5 @@
-var items [5]int
-var items []int
-items := []int{1, 2, 3, 4, 5}
-items := make([]int, 5)
-items := make([]int, 0, 5)
+var items [5]string
+var items []string
+items := []string{"steve", "alex", "dave"}
+items := make([]string, 5)
+items := make([]string, 0, 5)
