@@ -1,5 +1,5 @@
-n := map[string]int{"foo": 1, "bar": 2}
-n2 := map[string]int{"foo": 1, "bar": 2}
+n := map[string]string{"foo": "1", "bar": "2"}
+n2 := map[string]string{"foo": "2", "bar": "2"}
 if maps.Equal(n, n2) {
 	fmt.Println("n == n2")
 }
